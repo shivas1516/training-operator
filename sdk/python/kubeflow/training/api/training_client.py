@@ -46,31 +46,32 @@ class TrainingClient(object):
         namespace: str = utils.get_default_target_namespace(),
         job_kind: str = constants.PYTORCHJOB_KIND,
     ):
-        """TrainingClient constructor. Configure logging in your application
-            as follows to see detailed information from the TrainingClient APIs:
-            .. code-block:: python
-                import logging
-                logging.basicConfig()
-                log = logging.getLogger("kubeflow.training.api.training_client")
-                log.setLevel(logging.DEBUG)
-
-        Args:
-            config_file: Path to the kube-config file. Defaults to ~/.kube/config.
-            context: Set the active context. Defaults to current_context from the kube-config.
-            client_configuration: Client configuration for cluster authentication.
-                You have to provide valid configuration with Bearer token or
-                with username and password. You can find an example here:
-                https://github.com/kubernetes-client/python/blob/67f9c7a97081b4526470cad53576bc3b71fa6fcc/examples/remote_cluster.py#L31
-            namespace: Target Kubernetes namespace. By default it takes namespace
-                from `/var/run/secrets/kubernetes.io/serviceaccount/namespace` location
-                or set as `default`. Namespace can be overridden during method invocations.
-            job_kind: Target Training Job kind (e.g. `TFJob`, `PyTorchJob`, `MPIJob`).
-                Job kind can be overridden during method invocations.
-                The default Job kind is `PyTorchJob`.
-
-        Raises:
-            ValueError: Job kind is invalid.
         """
+        TrainingClient constructor. Configure logging in your application
+        as follows to see detailed information from the TrainingClient APIs:
+
+        .. code-block:: python
+
+            import logging
+            logging.basicConfig()
+            log = logging.getLogger("kubeflow.training.api.training_client")
+            log.setLevel(logging.DEBUG)
+
+        :param str config_file: Path to the kube-config file. Defaults to ``~/.kube/config``.
+        :param str context: Set the active context. Defaults to ``current_context`` from the kube-config.
+        :param client_configuration: Client configuration for cluster authentication.
+            You must provide valid configuration with a Bearer token or with a username and password.
+            An example can be found here:
+            https://github.com/kubernetes-client/python/blob/67f9c7a97081b4526470cad53576bc3b71fa6fcc/examples/remote_cluster.py#L31
+        :param str namespace: Target Kubernetes namespace. By default, it takes the namespace
+            from `/var/run/secrets/kubernetes.io/serviceaccount/namespace` or is set as `default`.
+            The namespace can be overridden during method invocations.
+        :param str job_kind: Target Training Job kind (e.g., ``TFJob``, ``PyTorchJob``, ``MPIJob``).
+            Job kind can be overridden during method invocations. The default Job kind is ``PyTorchJob``.
+
+        :raises ValueError: If the Job kind is invalid.
+        """
+
 
         # If client configuration is not set, use kube-config to access Kubernetes APIs.
         if client_configuration is None:
@@ -108,64 +109,58 @@ class TrainingClient(object):
             "access_modes": constants.PVC_DEFAULT_ACCESS_MODES,
         },
     ):
-        """High level API to fine-tune LLMs with distributed PyTorchJob. Follow this guide
+        """
+        High-level API to fine-tune LLMs with distributed PyTorchJob. Follow this guide
         for more information about this feature: TODO (andreyvelich): Add link.
 
-        It uses the pre-created Storage Initializer to download pre-trained model and dataset, and
-        Trainer to fine-tune LLM. Your cluster should support PVC with ReadOnlyMany access mode
+        It uses the pre-created Storage Initializer to download a pre-trained model and dataset, and
+        Trainer to fine-tune LLM. Your cluster should support PVC with `ReadOnlyMany` access mode
         to distribute data across PyTorchJob workers.
 
-        It uses `torchrun` CLI to fine-tune model in distributed mode with multiple PyTorchJob
-        workers. Follow this guide to know more about `torchrun` CLI:
-        https://pytorch.org/docs/stable/elastic/run.html
+        It uses the `torchrun` CLI to fine-tune models in distributed mode with multiple PyTorchJob
+        workers. Follow this guide to learn more about `torchrun` CLI:
+        https://pytorch.org/docs/stable/elastic/run.html.
 
-        This feature is in alpha stage and Kubeflow community is looking for your feedback.
-        Please use #kubeflow-training Slack channel or Kubeflow Training Operator GitHub
+        This feature is in alpha stage and the Kubeflow community is looking for feedback.
+        Please use the `#kubeflow-training` Slack channel or the Kubeflow Training Operator GitHub
         for your questions or suggestions.
 
-        Args:
-            name: Name of the PyTorchJob.
-            namespace: Namespace for the PyTorchJob. By default namespace is taken from
-                `TrainingClient` object.
-            num_workers: Number of PyTorchJob workers.
-            num_procs_per_worker: Number of processes per PyTorchJob worker for `torchrun` CLI.
-                You can use this parameter if you want to use more than 1 GPU per PyTorchJob worker.
-            resources_per_worker: A parameter that lets you specify how much
-                resources each PyTorchJob worker container should have. You can either specify a
-                kubernetes.client.V1ResourceRequirements object (documented here:
-                https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1ResourceRequirements.md)
-                or a dictionary that includes one or more of the following keys:
-                `cpu`, `memory`, or `gpu` (other keys will be ignored). Appropriate
-                values for these keys are documented here:
-                https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/.
-                For example:
-                ```
+        :param str name: Name of the PyTorchJob.
+        :param str namespace: Namespace for the PyTorchJob. By default, the namespace is taken from
+            the `TrainingClient` object.
+        :param int num_workers: Number of PyTorchJob workers.
+        :param int num_procs_per_worker: Number of processes per PyTorchJob worker for `torchrun` CLI.
+            Use this parameter to run more than one GPU per PyTorchJob worker.
+        :param resources_per_worker: Resources each PyTorchJob worker container should have. You can either specify a
+            `kubernetes.client.V1ResourceRequirements` object or a dictionary with one or more of the following keys:
+            `cpu`, `memory`, or `gpu`. For example:
+
+            .. code-block:: yaml
+
                 {
                     "cpu": "1",
                     "memory": "2Gi",
                     "gpu": "1",
                 }
-                ```
-                Please note, `gpu` specifies a resource request with a key of
-                `nvidia.com/gpu`, i.e. an NVIDIA GPU. If you need a different type
-                of GPU, pass in a V1ResourceRequirement instance instead, since it's
-                more flexible. This parameter is optional and defaults to None.
-            model_provider_parameters: Parameters for the model provider in the Storage Initializer.
-                For example, HuggingFace model name and Transformer type for that model, like:
-                AutoModelForSequenceClassification. This argument must be the type of
-                `kubeflow.storage_initializer.hugging_face.HuggingFaceModelParams`
-            dataset_provider_parameters: Parameters for the dataset provider in the
-                Storage Initializer. For example, name of the HuggingFace dataset or
-                AWS S3 configuration. This argument must be the type of
-                `kubeflow.storage_initializer.hugging_face.HuggingFaceDatasetParams` or
-                `kubeflow.storage_initializer.s3.S3DatasetParams`
-            trainer_parameters: Parameters for LLM Trainer that will fine-tune pre-trained model
-                with the given dataset. For example, LoRA config for parameter-efficient fine-tuning
-                and HuggingFace training arguments like optimizer or number of training epochs.
-                This argument must be the type of
-                `kubeflow.storage_initializer.HuggingFaceTrainerParams`
-            storage_config: Configuration for Storage Initializer PVC to download pre-trained model
-                and dataset. You can configure PVC size and storage class name in this argument.
+
+            `gpu` specifies a resource request with a key of `nvidia.com/gpu` (for NVIDIA GPUs). If you need a different type
+            of GPU, use a `V1ResourceRequirement` instance. This parameter is optional and defaults to None.
+        :param model_provider_parameters: Parameters for the model provider in the Storage Initializer.
+            For example, HuggingFace model name and Transformer type for that model, like:
+            `AutoModelForSequenceClassification`. This argument must be of the type
+            `kubeflow.storage_initializer.hugging_face.HuggingFaceModelParams`.
+        :param dataset_provider_parameters: Parameters for the dataset provider in the Storage Initializer.
+            For example, the name of the HuggingFace dataset or AWS S3 configuration. This argument must be of the type
+            `kubeflow.storage_initializer.hugging_face.HuggingFaceDatasetParams` or
+            `kubeflow.storage_initializer.s3.S3DatasetParams`.
+        :param trainer_parameters: Parameters for the LLM Trainer that will fine-tune the pre-trained model
+            with the provided dataset. For example, LoRA config for parameter-efficient fine-tuning
+            and HuggingFace training arguments like optimizer or number of training epochs.
+            This argument must be of the type
+            `kubeflow.storage_initializer.HuggingFaceTrainerParams`.
+        :param storage_config: Configuration for the Storage Initializer PVC to download the pre-trained model
+            and dataset. You can configure the PVC size and storage class name in this argument.
+
         """
         try:
             import peft  # noqa: F401
@@ -329,64 +324,58 @@ class TrainingClient(object):
         packages_to_install: Optional[List[str]] = None,
         pip_index_url: str = constants.DEFAULT_PIP_INDEX_URL,
     ):
-        """Create the Training Job.
-        Job can be created using one of the following options:
+        """
+        Create the Training Job.
 
-        - Define custom resource object in `job` parameter (e.g. TFJob or PyTorchJob).
-        - Define training function in `train_func` parameter and number of workers.
-        - Define Docker image in `base_image` parameter and number of workers.
+        The job can be created using one of the following options:
 
-        Args:
-            job: Job object. Object must be one of these types: KubeflowOrgV1TFJob,
-                KubeflowOrgV1PyTorchJob, etc.
-            name: Name for the Job. It must be set if `job` parameter is omitted.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). It must be set if
-                `job` parameter is omitted. By default Job kind is taken from
-                `TrainingClient` object.
-            base_image: Image that Job uses to train the model on each training replica.
-                If `train_func` parameter is set, this image is used to execute the training
-                function. The `constants` module contains some base images, the default image
-                is `docker.io/pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime`
-            train_func: Function that Job uses to train the model on each training replica.
-                This function must be Callable. Optionally, this function might have one dict
-                argument to define input parameters for the function. If `train_func` is
-                set, Base Image must support `bash` CLI to execute the training script.
-            parameters: Dict of input parameters that training function might receive.
-            num_workers: Number of Worker replicas for the Job.
-            resources_per_worker: A parameter that lets you specify how much
-                resources each Worker container should have. You can either specify a
-                kubernetes.client.V1ResourceRequirements object (documented here:
-                https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1ResourceRequirements.md)
-                or a dictionary that includes one or more of the following keys:
-                `cpu`, `memory`, or `gpu` (other keys will be ignored). Appropriate
-                values for these keys are documented here:
-                https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/.
-                For example:
-                ```
+        - Define a custom resource object in the `job` parameter (e.g. `TFJob` or `PyTorchJob`).
+        - Define a training function in the `train_func` parameter and specify the number of workers.
+        - Define a Docker image in the `base_image` parameter and specify the number of workers.
+
+        :param job: Job object. Must be one of the following types: `KubeflowOrgV1TFJob`,
+            `KubeflowOrgV1PyTorchJob`, etc.
+        :param str name: Name of the job. This must be set if the `job` parameter is omitted.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g. `TFJob` or `PyTorchJob`). This must be set if
+            the `job` parameter is omitted. By default, the job kind is taken from the
+            `TrainingClient` object.
+        :param str base_image: Docker image that the job uses to train the model on each training replica.
+            If the `train_func` parameter is set, this image is used to execute the training function.
+            The `constants` module contains some base images, with the default image being
+            `docker.io/pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime`.
+        :param Callable train_func: Function that the job uses to train the model on each training replica.
+            This function must be callable. Optionally, this function can take a single `dict` argument
+            to define input parameters. If `train_func` is set, the base image must support the `bash`
+            CLI to execute the training script.
+        :param dict parameters: Dictionary of input parameters that the training function might receive.
+        :param int num_workers: Number of worker replicas for the job.
+        :param resources_per_worker: Resources for each worker container. You can either specify a
+            `kubernetes.client.V1ResourceRequirements` object or a dictionary that includes one or more of the
+            following keys: `cpu`, `memory`, or `gpu`. For example:
+
+            .. code-block:: yaml
+
                 {
                     "cpu": "1",
                     "memory": "2Gi",
                     "gpu": "1",
                 }
-                ```
-                Please note, `gpu` specifies a resource request with a key of
-                `nvidia.com/gpu`, i.e. an NVIDIA GPU. If you need a different type
-                of GPU, pass in a V1ResourceRequirement instance instead, since it's
-                more flexible. This parameter is optional and defaults to None.
-            num_chief_replicas: Number of Chief replicas for the TFJob. Number
-                of Chief replicas can't be more than 1.
-            num_ps_replicas: Number of Parameter Server replicas for the TFJob.
-            packages_to_install: List of Python packages to install in addition
-                to the base image packages if `train_func` parameter is set.
-                These packages are installed before executing the objective function.
-            pip_index_url: The PyPI url from which to install Python packages.
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to create Job.
-            RuntimeError: Failed to create Job.
+            `gpu` specifies a resource request with the key `nvidia.com/gpu` (for NVIDIA GPUs). For other types of GPUs, use a
+            `V1ResourceRequirements` instance. This parameter is optional and defaults to `None`.
+        :param int num_chief_replicas: Number of Chief replicas for the `TFJob`. The number of Chief replicas
+            cannot exceed 1.
+        :param int num_ps_replicas: Number of Parameter Server replicas for the `TFJob`.
+        :param list packages_to_install: List of Python packages to install in addition to those in the base image
+            if the `train_func` parameter is set. These packages are installed before executing the training function.
+        :param str pip_index_url: PyPI URL from which to install Python packages.
+
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If job creation times out.
+        :raises RuntimeError: If the job fails to be created.
+
         """
 
         # When Job is set, only namespace arg is allowed.
@@ -500,24 +489,23 @@ class TrainingClient(object):
         job_kind: Optional[str] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> constants.JOB_MODELS_TYPE:
-        """Get the Training Job.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            object: Job object. For example: KubeflowOrgV1PyTorchJob
-
-        Raises:
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
         """
+        Get the Training Job.
 
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g. `TFJob` or `PyTorchJob`). By default, the job kind is
+            taken from the `TrainingClient` object.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: Job object, such as `KubeflowOrgV1PyTorchJob`.
+        :rtype: object
+
+        :raises TimeoutError: If the request times out when trying to get the job.
+        :raises RuntimeError: If the job retrieval fails.
+
+"""
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind
 
@@ -553,24 +541,24 @@ class TrainingClient(object):
         job_kind: Optional[str] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> List[constants.JOB_MODELS_TYPE]:
-        """List of all Training Jobs with specific kind in namespace.
-
-        Args:
-            namespace: Namespace to list the Jobs. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            list[object]: List of Job objects.
-                For example: list of KubeflowOrgV1PyTorchJob objects. It returns empty list
-                if Jobs can't be found.
-
-        Raises:
-            TimeoutError: Timeout to list Jobs
-            RuntimeError: Failed to list Jobs
         """
+        List all Training Jobs of a specific kind in a namespace.
+
+        :param str namespace: Namespace to list the jobs. By default, the namespace is taken from the
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g. `TFJob` or `PyTorchJob`). By default, the job kind is
+            taken from the `TrainingClient` object.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: List of job objects. For example, a list of `KubeflowOrgV1PyTorchJob` objects. Returns
+            an empty list if no jobs are found.
+        :rtype: list[object]
+
+        :raises TimeoutError: If the request times out while trying to list jobs.
+        :raises RuntimeError: If listing jobs fails.
+
+        """
+
 
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind
@@ -612,32 +600,30 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> List[models.V1JobCondition]:
-        """Get the Training Job conditions. Training Job is in the condition when
-        `status=True` for the appropriate condition `type`. For example,
-        Training Job is Succeeded when `status=True` and `type=Succeeded`.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            list[V1JobCondition]: List of Job conditions with
-                last transition time, last update time, message, reason, type, and
-                status. It returns empty list if Job does not have any
-                conditions yet.
-
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
         """
+        Get the Training Job conditions. A Training Job is in a specific condition when `status=True` 
+        for the appropriate condition `type`. For example, a Training Job is considered Succeeded when 
+        `status=True` and `type=Succeeded`.
+
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object to get the conditions. The object must be one of these types: 
+            `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the job using 
+            the provided name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: List of job conditions with the last transition time, last update time, message, 
+            reason, type, and status. Returns an empty list if the job has no conditions yet.
+        :rtype: list[V1JobCondition]
+
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If getting the job fails.
+        """
+
 
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind
@@ -678,26 +664,25 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> bool:
-        """Check if Training Job is Created.
+        """
+        Check if the Training Job is Created.
 
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object used to check conditions. The object must be one of the following 
+            types: `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the 
+            job by the given name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
 
-        Returns:
-            bool: True if Job is Created, else False.
+        :returns: True if the job is created, else False.
+        :rtype: bool
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails.
         """
 
         return utils.has_condition(
@@ -713,26 +698,25 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> bool:
-        """Check if Training Job is Running.
+        """
+        Check if the Training Job is Running.
 
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object used to check conditions. The object must be one of the following 
+            types: `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the 
+            job by the given name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
 
-        Returns:
-            bool: True if Job is Running, else False.
+        :returns: True if the job is running, else False.
+        :rtype: bool
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails.
         """
 
         return utils.has_condition(
@@ -748,26 +732,25 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> bool:
-        """Check if Training Job is Restarting.
+        """
+        Check if the Training Job is Restarting.
 
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object used to check conditions. The object must be one of the following 
+            types: `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the 
+            job by the given name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
 
-        Returns:
-            bool: True if Job is Restarting, else False.
+        :returns: True if the job is restarting, else False.
+        :rtype: bool
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails.
         """
 
         return utils.has_condition(
@@ -783,26 +766,25 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> bool:
-        """Check if Training Job is Succeeded.
+        """
+        Check if the Training Job has Succeeded.
 
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object used to get the conditions. The object must be one of the following 
+            types: `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the 
+            job by the given name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
 
-        Returns:
-            bool: True if Job is Succeeded, else False.
+        :returns: True if the job has succeeded, else False.
+        :rtype: bool
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails.
         """
 
         return utils.has_condition(
@@ -818,27 +800,27 @@ class TrainingClient(object):
         job: Optional[constants.JOB_MODELS_TYPE] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> bool:
-        """Check if Training Job is Failed.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            job: Job object can be set to get the conditions. Object must be one of
-                these types: KubeflowOrgV1TFJob, KubeflowOrgV1PyTorchJob, etc.
-                If this parameter is omitted, it gets Job with the given name and kind.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            bool: True if Job is Failed, else False.
-
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job.
         """
+        Check if the Training Job has Failed.
+
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param object job: Job object used to get the conditions. The object must be one of the following 
+            types: `KubeflowOrgV1TFJob`, `KubeflowOrgV1PyTorchJob`, etc. If omitted, it retrieves the 
+            job by the given name and kind.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: True if the job has failed, else False.
+        :rtype: bool
+
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails.
+        """
+
 
         return utils.has_condition(
             self.get_job_conditions(name, namespace, job_kind, job, timeout),
@@ -856,33 +838,32 @@ class TrainingClient(object):
         callback: Optional[Callable] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> constants.JOB_MODELS_TYPE:
-        """Wait until Training Job reaches any of the specified conditions.
-        By default it waits for the Succeeded condition.
+        """
+        Wait until the Training Job reaches any of the specified conditions.
+        By default, it waits for the `Succeeded` condition.
 
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            expected_conditions: Set of expected conditions. It must be subset of this:
-                `{"Created", "Running", "Restarting", "Succeeded", "Failed"}`
-            wait_timeout: How many seconds to wait until Job reaches one of
-                the expected conditions.
-            polling_interval: The polling interval in seconds to get Job status.
-            callback: Callback function that is invoked after Job
-                status is polled. This function takes a single argument which
-                is current Job object.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind 
+            is taken from the `TrainingClient` object.
+        :param set expected_conditions: Set of expected conditions. Must be a subset of 
+            `{"Created", "Running", "Restarting", "Succeeded", "Failed"}`.
+        :param int wait_timeout: Number of seconds to wait until the job reaches one of the 
+            expected conditions.
+        :param int polling_interval: The polling interval in seconds to check the job status.
+        :param callable callback: Callback function invoked after each status poll. This function 
+            takes a single argument, which is the current job object.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
 
-        Returns:
-            object: Job object. For example: KubeflowOrgV1PyTorchJob
+        :returns: The job object.
+        :rtype: object
+            For example: `KubeflowOrgV1PyTorchJob`.
 
-        Raises:
-            ValueError: Invalid input parameters.
-            TimeoutError: Timeout to get Job.
-            RuntimeError: Failed to get Job, or Job reaches Failed condition and
-                Failed is not in `expected_conditions` set.
+        :raises ValueError: If input parameters are invalid.
+        :raises TimeoutError: If the request times out while trying to get the job.
+        :raises RuntimeError: If retrieving the job fails, or if the job reaches the `Failed` condition 
+            and `Failed` is not in the `expected_conditions` set.
         """
 
         namespace = namespace or self.namespace
@@ -946,36 +927,31 @@ class TrainingClient(object):
         replica_index: Optional[int] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> List[models.V1Pod]:
-        """Get pods for the Training Job.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            is_master: Whether to get pods only with the label
-                `training.kubeflow.org/job-role: master`.
-            replica_type: Type of the Job replica.
-                For TFJob one of `Chief`, `PS`, or `worker`.
-
-                For PyTorchJob one of `master` or `worker`.
-
-                For XGBoostJob one of `master` or `worker`.
-
-                For MPIJob one of `launcher` or `worker`.
-
-                For PaddleJob one of `master` or `worker`.
-
-            replica_index: Index for the Job replica.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            list[V1Pod]: List of the Job pods.
-
-        Raises:
-            ValueError: Job replica type is invalid.
-            TimeoutError: Timeout to get Job pods.
-            RuntimeError: Failed to get Job pods.
         """
+        Get pods for the Training Job.
+
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param bool is_master: Whether to get pods only with the label 
+            `training.kubeflow.org/job-role: master`.
+        :param str replica_type: Type of the job replica.
+            For `TFJob`: One of `Chief`, `PS`, or `worker`.
+            For `PyTorchJob`: One of `master` or `worker`.
+            For `XGBoostJob`: One of `master` or `worker`.
+            For `MPIJob`: One of `launcher` or `worker`.
+            For `PaddleJob`: One of `master` or `worker`.
+        :param int replica_index: Index for the job replica.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: List of job pods.
+        :rtype: list[V1Pod]
+
+        :raises ValueError: If the job replica type is invalid.
+        :raises TimeoutError: If the request times out while trying to get job pods.
+        :raises RuntimeError: If retrieving job pods fails.
+        """
+
 
         namespace = namespace or self.namespace
 
@@ -1033,36 +1009,31 @@ class TrainingClient(object):
         replica_index: Optional[int] = None,
         timeout: int = constants.DEFAULT_TIMEOUT,
     ) -> List[str]:
-        """Get pod names for the Training Job.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            is_master: Whether to get pods only with the label
-                `training.kubeflow.org/job-role: master`.
-            replica_type: Type of the Job replica.
-                For TFJob one of `Chief`, `PS`, or `worker`.
-
-                For PyTorchJob one of `master` or `worker`.
-
-                For XGBoostJob one of `master` or `worker`.
-
-                For MPIJob one of `launcher` or `worker`.
-
-                For PaddleJob one of `master` or `worker`.
-
-            replica_index: Index for the Job replica.
-            timeout: Kubernetes API server timeout in seconds to execute the request.
-
-        Returns:
-            list[str]: List of the Job pod names.
-
-        Raises:
-            ValueError: Job replica type is invalid.
-            TimeoutError: Timeout to get Job pods.
-            RuntimeError: Failed to get Job pods.
         """
+        Get pod names for the Training Job.
+
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the 
+            `TrainingClient` object.
+        :param bool is_master: Whether to get pods only with the label 
+            `training.kubeflow.org/job-role: master`.
+        :param str replica_type: Type of the job replica.
+            For `TFJob`: One of `Chief`, `PS`, or `worker`.
+            For `PyTorchJob`: One of `master` or `worker`.
+            For `XGBoostJob`: One of `master` or `worker`.
+            For `MPIJob`: One of `launcher` or `worker`.
+            For `PaddleJob`: One of `master` or `worker`.
+        :param int replica_index: Index for the job replica.
+        :param int timeout: Kubernetes API server timeout in seconds to execute the request.
+
+        :returns: List of job pod names.
+        :rtype: list[str]
+
+        :raises ValueError: If the job replica type is invalid.
+        :raises TimeoutError: If the request times out while trying to get job pods.
+        :raises RuntimeError: If retrieving job pods fails.
+        """
+
 
         namespace = namespace or self.namespace
 
@@ -1078,7 +1049,7 @@ class TrainingClient(object):
         for pod in pods:
             pod_names.append(pod.metadata.name)
         return pod_names
-
+    
     def get_job_logs(
         self,
         name: str,
@@ -1091,58 +1062,50 @@ class TrainingClient(object):
         timeout: int = constants.DEFAULT_TIMEOUT,
         verbose: bool = False,
     ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
-        """Get the logs for every Training Job pod. By default it returns logs from
-        the `master` pod. Logs are returned in this format: { "pod-name": "Log data" }.
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            is_master: Whether to get logs for the pod with the label
-                `training.kubeflow.org/job-role: master`.
-            replica_type: Optional, type of the Job replica.
-                For TFJob one of `chief`, `ps`, or `worker`.
-
-                For PyTorchJob one of `master` or `worker`.
-
-                For XGBoostJob one of `master` or `worker`.
-
-                For MPIJob one of `launcher` or `worker`.
-
-                For PaddleJob one of `master` or `worker`.
-            replica_index: Optional, index for the Job replica.
-            container: Pod container to get the logs.
-            follow: Whether to follow the log stream of the pod and print logs to StdOut.
-            timeout: Optional, Kubernetes API server timeout in seconds
-                to execute the request.
-            verbose: Whether to get Kubernetes events for Job and corresponding pods.
-                If you need to get events from all PyTorchJob's Pods, set `isMaster = False`.
-
-        Returns:
-            Dict[str, str]: A dictionary in which the keys are pod names and the
-            values are the corresponding logs.
-            Dict[str, str]: A dictionary in which the keys are object kind and name, and the
-            values are list of the corresponding Kubernetes events with their timestamps. This
-            value is returned only if `verbose = True`. For example:
-            ```json
-            {
-              "PyTorchJob train-mnist": [
-                "2024-01-05 22:58:20 Created pod: train-mnist-worker-0"
-              ],
-              "Pod train-mnist-worker-0": [
-                "2024-01-05 22:58:20 Created container init-pytorch"
-              ]
-            }
-            ```
-
-        Raises:
-            ValueError: Job replica type is invalid.
-            TimeoutError: Timeout to get Job or Job's pods
-            RuntimeError: Failed to get Job or Job's pods.
         """
+        Get the logs for every Training Job pod. By default, it returns logs from
+        the `master` pod. Logs are returned in this format: ``{ "pod-name": "Log data" }``.
 
+        :param str name: Name for the Job.
+        :param str namespace: Namespace for the Job. By default, the namespace is taken from
+            the `TrainingClient` object.
+        :param str job_kind: Kind for the Job (e.g., `TFJob` or `PyTorchJob`). By default, the Job kind
+            is taken from the `TrainingClient` object.
+        :param bool is_master: Whether to get logs for the pod with the label
+            `training.kubeflow.org/job-role: master`.
+        :param str replica_type: Optional. Type of the Job replica:
+            - For `TFJob`: one of `chief`, `ps`, or `worker`.
+            - For `PyTorchJob`: one of `master` or `worker`.
+            - For `XGBoostJob`: one of `master` or `worker`.
+            - For `MPIJob`: one of `launcher` or `worker`.
+            - For `PaddleJob`: one of `master` or `worker`.
+        :param int replica_index: Optional. Index for the Job replica.
+        :param str container: Pod container to get the logs.
+        :param bool follow: Whether to follow the log stream of the pod and print logs to StdOut.
+        :param int timeout: Optional. Kubernetes API server timeout in seconds to execute the request.
+        :param bool verbose: Whether to get Kubernetes events for Job and corresponding pods.
+            If you need to get events from all `PyTorchJob`'s Pods, set `is_master` to `False`.
+
+        :returns: A dictionary where the keys are pod names and the values are the corresponding logs.
+            If `verbose` is `True`, it also returns a dictionary where the keys are object kinds and names, and the
+            values are lists of the corresponding Kubernetes events with their timestamps. For example:
+
+            .. code-block:: json
+
+                {
+                    "PyTorchJob train-mnist": [
+                        "2024-01-05 22:58:20 Created pod: train-mnist-worker-0"
+                    ],
+                    "Pod train-mnist-worker-0": [
+                        "2024-01-05 22:58:20 Created container init-pytorch"
+                    ]
+                }
+
+        :raises ValueError: If the Job replica type is invalid.
+        :raises TimeoutError: If the request times out while getting the Job or Job's pods.
+        :raises RuntimeError: If retrieving the Job or Job's pods fails.
+        """
+        
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind
 
@@ -1184,7 +1147,7 @@ class TrainingClient(object):
                         break
                     if finished[index]:
                         continue
-                    # grouping the every 50 log lines of the same pod
+                    # Grouping every 50 log lines of the same pod
                     for _ in range(50):
                         try:
                             logline = log_queue.get(timeout=1)
@@ -1192,7 +1155,7 @@ class TrainingClient(object):
                                 finished[index] = True
                                 break
 
-                            # Print logs to the StdOut
+                            # Print logs to StdOut
                             print(f"[Pod {pods[index].metadata.name}]: {logline}")
                             # Add logs to the results dict.
                             if pods[index].metadata.name not in logs_dict:
@@ -1253,20 +1216,21 @@ class TrainingClient(object):
         namespace: Optional[str] = None,
         job_kind: Optional[str] = None,
     ):
-        """Update the Training Job by using patch Kubernetes API.
-
-        Args:
-            job: Job object. For example, object with type
-                KubeflowOrgV1TFJob or KubeflowOrgV1PyTorchJob.
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-        Raises:
-            TimeoutError: Timeout to update Job
-            RuntimeError: Failed to update Job
         """
+        Update the Training Job using the patch Kubernetes API.
+
+        :param object job: Job object to be updated. For example, an object with type
+            `KubeflowOrgV1TFJob` or `KubeflowOrgV1PyTorchJob`.
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind
+            is taken from the `TrainingClient` object.
+
+        :raises TimeoutError: If the request times out while updating the job.
+        :raises RuntimeError: If updating the job fails.
+        """
+
 
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind
@@ -1299,21 +1263,21 @@ class TrainingClient(object):
         job_kind: Optional[str] = None,
         delete_options: Optional[models.V1DeleteOptions] = None,
     ):
-        """Delete the Training Job
-
-        Args:
-            name: Name for the Job.
-            namespace: Namespace for the Job. By default namespace is taken from
-                `TrainingClient` object.
-            job_kind: Kind for the Job (e.g. `TFJob` or `PyTorchJob`). By default Job kind
-                is taken from `TrainingClient` object.
-            delete_options: Optional, V1DeleteOptions to set while deleting
-                the Job. For example, grace period seconds.
-
-        Raises:
-            TimeoutError: Timeout to delete Job.
-            RuntimeError: Failed to delete Job.
         """
+        Delete the Training Job.
+
+        :param str name: Name of the job.
+        :param str namespace: Namespace for the job. By default, the namespace is taken from the
+            `TrainingClient` object.
+        :param str job_kind: Kind of the job (e.g., `TFJob` or `PyTorchJob`). By default, the job kind
+            is taken from the `TrainingClient` object.
+        :param V1DeleteOptions delete_options: Optional. `V1DeleteOptions` to set while deleting
+            the job, such as grace period seconds.
+
+        :raises TimeoutError: If the request times out while deleting the job.
+        :raises RuntimeError: If deleting the job fails.
+        """
+
 
         namespace = namespace or self.namespace
         job_kind = job_kind or self.job_kind

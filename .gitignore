@@ -9,6 +9,7 @@ cover.out
 # IDEs
 .vscode/
 __debug_bin
+venv
 
 # Compiled python files.
 *.pyc
@@ -48,3 +49,7 @@ cover.out
 /training-operator
 
 data/
+
+# sdk docs buildings
+
+build
